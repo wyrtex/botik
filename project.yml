@@ -48,5 +48,4 @@ targets:
         NSLocalNetworkUsageDescription: Чтобы подключаться к нейросети на вашем компьютере (Ollama, LM Studio) в локальной сети.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
-          NSAllowsLocalNetworking: true
     scheme: {}

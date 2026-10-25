@@ -36,11 +36,12 @@ IPA не подписан. Установить можно через:
 На Ubuntu/Debian под root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wyrtex/botik/master/server/setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/wyrtex/botik/master/server/setup.sh | sudo DOMAIN=ai.example.com bash
 ```
 
 Скрипт ставит Ollama, скачивает `huihui_ai/qwen3-abliterated` (размер по объёму RAM)
-и закрывает доступ ключом через прокси Caddy на порту 8080. В конце печатает адрес,
+и закрывает доступ ключом через прокси Caddy с бесплатным HTTPS-сертификатом.
+Перед запуском добавьте в DNS домена A-запись на IP сервера. Без домена: `sudo PORT=8080 bash` (обычный http). В конце печатает адрес,
 API-ключ и модель — их надо вписать в приложении (Настройки → Добавить сервер → Свой).
 Свою модель или порт можно задать так: `... | sudo MODEL=huihui_ai/qwen3-abliterated:14b PORT=9000 bash`.
 

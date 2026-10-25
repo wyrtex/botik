@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # Botik server: Ollama + uncensored huihui model + password-protected proxy.
 # Usage (Ubuntu/Debian VPS, as root):
-#   curl -fsSL https://raw.githubusercontent.com/wyrtex/botik/master/server/setup.sh | sudo bash
-# Options (env vars): MODEL=huihui_ai/qwen3-abliterated:8b PORT=8080
+#   curl -fsSL https://raw.githubusercontent.com/wyrtex/botik/master/server/setup.sh | sudo DOMAIN=ai.example.com bash
+# Options (env vars):
+#   DOMAIN=ai.example.com  — HTTPS with a free Let's Encrypt certificate (needs ports 80/443
+#                            and a DNS A record pointing to this server)
+#   PORT=8080              — plain HTTP port, used when DOMAIN is not set
+#   MODEL=huihui_ai/qwen3-abliterated:8b
 set -euo pipefail
 
 PORT="${PORT:-8080}"
 MODEL="${MODEL:-}"
+DOMAIN="${DOMAIN:-}"
 CONF_DIR=/etc/botik
 
 if [ "$(id -u)" != 0 ]; then
@@ -20,6 +25,17 @@ if command -v apt-get >/dev/null; then
   say "Устанавливаю зависимости"
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates zstd openssl >/dev/null
+fi
+
+IP=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+if [ -n "$DOMAIN" ]; then
+  resolved=$(getent ahostsv4 "$DOMAIN" | awk '{print $1; exit}' || true)
+  if [ "$resolved" != "$IP" ]; then
+    echo >&2
+    echo "Домен $DOMAIN указывает на '${resolved:-никуда}', а IP этого сервера — $IP." >&2
+    echo "Добавьте в DNS A-запись: $DOMAIN → $IP, подождите 5–30 минут и запустите скрипт снова." >&2
+    exit 1
+  fi
 fi
 
 if ! command -v ollama >/dev/null; then
@@ -61,13 +77,24 @@ if [ ! -s "$CONF_DIR/key" ]; then
 fi
 KEY=$(cat "$CONF_DIR/key")
 
+if [ -n "$DOMAIN" ]; then
+  GLOBAL_OPTS="admin off"
+  SITE="$DOMAIN"
+  OPEN_PORTS="80 443"
+  URL="https://${DOMAIN}/v1"
+else
+  GLOBAL_OPTS=$'admin off\n\tauto_https off'
+  SITE=":${PORT}"
+  OPEN_PORTS="$PORT"
+  URL="http://${IP}:${PORT}/v1"
+fi
+
 cat > "$CONF_DIR/Caddyfile" <<EOF
 {
-	admin off
-	auto_https off
+	${GLOBAL_OPTS}
 }
 
-:${PORT} {
+${SITE} {
 	@unauthorized not header Authorization "Bearer ${KEY}"
 	respond @unauthorized "Unauthorized" 401
 
@@ -86,6 +113,7 @@ After=network-online.target ollama.service
 Wants=network-online.target
 
 [Service]
+Environment=XDG_DATA_HOME=/var/lib/botik-caddy XDG_CONFIG_HOME=/var/lib/botik-caddy
 ExecStart=/usr/local/bin/caddy run --config ${CONF_DIR}/Caddyfile --adapter caddyfile
 Restart=always
 
@@ -97,16 +125,18 @@ systemctl enable botik-proxy >/dev/null 2>&1
 systemctl restart botik-proxy
 
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
-  ufw allow "${PORT}/tcp" >/dev/null
+  for p in $OPEN_PORTS; do ufw allow "${p}/tcp" >/dev/null; done
 fi
 
-sleep 2
-IP=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
-if curl -fsS -H "Authorization: Bearer ${KEY}" "http://127.0.0.1:${PORT}/v1/models" >/dev/null; then
-  status="работает ✓"
-else
-  status="не отвечает — смотрите: journalctl -u botik-proxy -u ollama -n 50"
-fi
+say "Проверяю подключение (получение сертификата может занять до минуты)"
+status="не отвечает — смотрите: journalctl -u botik-proxy -u ollama -n 50"
+for _ in $(seq 1 30); do
+  if curl -fsS --max-time 10 -H "Authorization: Bearer ${KEY}" "${URL}/models" >/dev/null 2>&1; then
+    status="работает ✓"
+    break
+  fi
+  sleep 3
+done
 
 cat <<EOF
 
@@ -115,7 +145,7 @@ cat <<EOF
 
  В приложении Botik: Настройки → Добавить сервер → Свой
 
-   Адрес API:  http://${IP}:${PORT}/v1
+   Адрес API:  ${URL}
    API-ключ:   ${KEY}
    Модель:     ${MODEL}
 
