@@ -1,0 +1,8 @@
+*.xcodeproj/
+Botik/Info.plist
+build/
+Payload/
+*.ipa
+DerivedData/
+.DS_Store
+xcuserdata/
