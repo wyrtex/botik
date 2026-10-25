@@ -31,6 +31,19 @@ IPA не подписан. Установить можно через:
 
 ## Подключение нейросети
 
+### На своём VPS (одна команда)
+
+На Ubuntu/Debian под root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wyrtex/botik/master/server/setup.sh | sudo bash
+```
+
+Скрипт ставит Ollama, скачивает `huihui_ai/qwen3-abliterated` (размер по объёму RAM)
+и закрывает доступ ключом через прокси Caddy на порту 8080. В конце печатает адрес,
+API-ключ и модель — их надо вписать в приложении (Настройки → Добавить сервер → Свой).
+Свою модель или порт можно задать так: `... | sudo MODEL=huihui_ai/qwen3-abliterated:14b PORT=9000 bash`.
+
 ### Ollama на компьютере (локально, без цензуры)
 
 ```bash
