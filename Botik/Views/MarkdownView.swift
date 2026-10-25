@@ -193,11 +193,11 @@ struct TableBlockView: View {
                                 .font(index == 0 ? .subheadline.bold() : .subheadline)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
-                                .frame(minWidth: 60, maxWidth: 280, alignment: .leading)
+                                .frame(minWidth: 60, maxWidth: 280, maxHeight: .infinity, alignment: .leading)
                                 .fixedSize(horizontal: false, vertical: true)
+                                .background(index == 0 ? Color.secondary.opacity(0.15) : index % 2 == 0 ? Color.secondary.opacity(0.05) : Color.clear)
                         }
                     }
-                    .background(index == 0 ? Color.secondary.opacity(0.15) : index % 2 == 0 ? Color.secondary.opacity(0.05) : Color.clear)
                     if index < rows.count - 1 { Divider() }
                 }
             }
